@@ -1909,11 +1909,6 @@
             font-weight: 700;
             font-size: 18px;
         }
-        
-        .magazine-price.free {
-            background-color: var(--success-green);
-            color: white;
-        }
 
         .magazine-info {
             padding: 25px;
@@ -2014,11 +2009,6 @@
         .subscription-status.active {
             background-color: #c6f6d5;
             color: var(--success-green);
-        }
-        
-        .subscription-status.free {
-            background-color: #4299e1;
-            color: white;
         }
         
         .subscription-status.pending {
@@ -3702,15 +3692,6 @@
                         <input type="number" id="admin-magazine-price" min="0" placeholder="Masukkan harga" required>
                     </div>
                     
-                    <!-- TAMBAHAN: Field Jenis Akses -->
-                    <div class="admin-form-group">
-                        <label for="admin-magazine-access"><i class="fas fa-unlock"></i> Jenis Akses</label>
-                        <select id="admin-magazine-access" required>
-                            <option value="premium">Premium (Hanya untuk Pelanggan)</option>
-                            <option value="free">Gratis (Semua Orang Bisa Akses)</option>
-                        </select>
-                    </div>
-                    
                     <div class="admin-form-group">
                         <label for="admin-magazine-description"><i class="fas fa-align-left"></i> Deskripsi</label>
                         <textarea id="admin-magazine-description" placeholder="Deskripsi singkat tentang majalah"></textarea>
@@ -4415,14 +4396,6 @@
         }
 
         function checkUserSubscription(magazineId = null) {
-            // Jika majalah adalah FREE, semua orang bisa akses
-            if (magazineId) {
-                const magazine = adminMagazines.find(m => m.id === magazineId);
-                if (magazine && magazine.accessType === 'free') {
-                    return { status: 'free' }; // Kembalikan objek untuk menandakan free
-                }
-            }
-            
             if (!currentUser) return null;
             
             const now = new Date().toISOString().split('T')[0];
@@ -5100,10 +5073,9 @@
                     if (magazine) {
                         // Cek apakah user sudah berlangganan
                         const userSubscription = checkUserSubscription(magazine.id);
-                        const isFree = magazine.accessType === 'free';
                         
-                        if (isFree || userSubscription) {
-                            // Jika gratis atau sudah berlangganan, buka flipbook full
+                        if (userSubscription) {
+                            // Jika sudah berlangganan, buka flipbook full
                             if (magazine.pdfUrl) {
                                 openFlipbook3D(magazine);
                             } else {
@@ -5396,40 +5368,26 @@
                 // Gunakan gambar placeholder jika coverUrl tidak ada
                 const coverImage = magazine.coverUrl || 'https://via.placeholder.com/400x500/1a365d/ffffff?text=Cover+Majalah';
                 
-                // Cek status akses majalah
-                const isFree = magazine.accessType === 'free';
+                // Cek status langganan pengguna untuk majalah ini
                 const userSubscription = checkUserSubscription(magazine.id);
                 const hasSubscription = userSubscription !== null;
                 
                 // Tentukan tombol yang akan ditampilkan
                 let actionButton;
-                let statusBadge = '';
-                
-                if (isFree) {
-                    // Majalah gratis - semua bisa akses
-                    actionButton = `<button class="action-button read-button" data-id="${magazine.id}">
-                        <i class="fas fa-book-open"></i> Baca Gratis
-                    </button>`;
-                    statusBadge = '<div class="subscription-status free" style="margin-top: 15px;">Gratis</div>';
-                } else if (hasSubscription) {
-                    // User sudah berlangganan
+                if (hasSubscription) {
                     actionButton = `<button class="action-button read-button" data-id="${magazine.id}">
                         <i class="fas fa-book-open"></i> Baca Majalah
                     </button>`;
-                    statusBadge = `<div class="subscription-status active" style="margin-top: 15px;">Langganan Aktif</div>`;
                 } else {
-                    // Premium - belum berlangganan
                     actionButton = `<button class="action-button subscribe-button" data-id="${magazine.id}" data-price="${magazine.price}" data-title="${magazine.title}">
                         <i class="fas fa-shopping-cart"></i> Langganan
                     </button>`;
                 }
                 
-                // Tampilkan tombol preview untuk semua pengguna (kecuali yang sudah bisa baca)
-                const showPreview = !isFree && !hasSubscription;
-                const previewButton = showPreview ? 
-                    `<button class="action-button preview-button" data-id="${magazine.id}">
-                        <i class="fas fa-eye"></i> Pratinjau
-                    </button>` : '';
+                // Tampilkan tombol preview untuk semua pengguna
+                const previewButton = `<button class="action-button preview-button" data-id="${magazine.id}">
+                    <i class="fas fa-eye"></i> Pratinjau
+                </button>`;
                 
                 // Tampilkan badge jika ada preview
                 const previewBadge = magazine.previewPages && magazine.previewPages.length > 0 ? 
@@ -5439,7 +5397,7 @@
                     <div class="magazine-cover-container">
                         <img src="${coverImage}" alt="${magazine.title}" class="magazine-cover">
                         <div class="magazine-overlay">
-                            <div class="magazine-price ${isFree ? 'free' : ''}">${isFree ? 'GRATIS' : formatCurrency(magazine.price)}</div>
+                            <div class="magazine-price">${formatCurrency(magazine.price)}</div>
                         </div>
                     </div>
                     <div class="magazine-info">
@@ -5449,35 +5407,26 @@
                         </p>
                         <p class="magazine-description">${magazine.description || 'Majalah islami berkualitas dengan konten inspiratif.'}</p>
                         <div class="magazine-actions">
-                            ${showPreview ? previewButton : ''}
+                            ${previewButton}
                             ${actionButton}
                         </div>
-                        ${statusBadge}
+                        ${hasSubscription ? `<div class="subscription-status active" style="margin-top: 15px;">Langganan Aktif</div>` : ''}
                     </div>
                 `;
                 
                 magazinesGrid.appendChild(magazineCard);
             });
             
-            // Event listener untuk tombol baca
+            // Event listener untuk tombol baca (langganan aktif)
             document.querySelectorAll('.read-button').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const magazineId = parseInt(e.target.closest('button').getAttribute('data-id'));
                     const magazine = adminMagazines.find(m => m.id === magazineId);
                     
-                    if (magazine) {
-                        const isFree = magazine.accessType === 'free';
-                        const userSubscription = checkUserSubscription(magazine.id);
-                        
-                        if (isFree || userSubscription) {
-                            if (magazine.pdfUrl) {
-                                openFlipbook3D(magazine);
-                            } else {
-                                showToast('File PDF tidak tersedia untuk majalah ini.', 'error');
-                            }
-                        } else {
-                            showToast('Silakan berlangganan terlebih dahulu.', 'warning');
-                        }
+                    if (magazine && magazine.pdfUrl) {
+                        openFlipbook3D(magazine);
+                    } else {
+                        showToast('File PDF tidak tersedia untuk majalah ini.', 'error');
                     }
                 });
             });
@@ -5809,22 +5758,6 @@
         }
 
         function openFlipbook3D(magazine) {
-            // Cek jika majalah gratis atau user punya akses
-            const isFree = magazine.accessType === 'free';
-            const userSubscription = checkUserSubscription(magazine.id);
-            
-            if (!isFree && !userSubscription) {
-                // Jika bukan free dan belum berlangganan, tampilkan preview
-                if (magazine.previewPages && magazine.previewPages.length > 0) {
-                    openPreviewModal(magazine);
-                    showToast('Silakan berlangganan untuk mengakses majalah lengkap.', 'info');
-                } else {
-                    showToast('Silakan berlangganan untuk mengakses majalah ini.', 'warning');
-                    openPaymentModal(`Majalah "${magazine.title}"`, magazine.price, magazine.title);
-                }
-                return;
-            }
-            
             currentFlipbookData = magazine;
             
             // Reset state
@@ -6283,7 +6216,7 @@
                 row.innerHTML = `
                     <td><strong>${magazine.title}</strong></td>
                     <td>${formatDate(magazine.date)}</td>
-                    <td><span class="subscription-status ${magazine.accessType === 'free' ? 'free' : 'active'}">${magazine.accessType === 'free' ? 'Gratis' : 'Aktif'}</span></td>
+                    <td><span class="subscription-status active">Aktif</span></td>
                     <td><strong>${magazine.reads || 0}</strong> kali</td>
                     <td class="admin-action-buttons">
                         <button class="admin-edit-btn" data-id="${magazine.id}"><i class="fas fa-edit"></i> Edit</button>
@@ -6330,8 +6263,8 @@
                 row.innerHTML = `
                     <td><strong>${magazine.title}</strong></td>
                     <td>${formatDate(magazine.date)}</td>
-                    <td>${magazine.accessType === 'free' ? 'GRATIS' : formatCurrency(magazine.price)}</td>
-                    <td><span class="subscription-status ${magazine.accessType === 'free' ? 'free' : 'active'}">${magazine.accessType === 'free' ? 'Gratis' : 'Premium'}</span></td>
+                    <td>${formatCurrency(magazine.price)}</td>
+                    <td><span class="subscription-status active">Aktif</span></td>
                     <td>${previewStatus}</td>
                     <td class="admin-action-buttons">
                         <button class="admin-edit-btn" data-id="${magazine.id}"><i class="fas fa-edit"></i> Edit</button>
@@ -6493,7 +6426,6 @@
             document.getElementById('admin-magazine-form').reset();
             document.getElementById('admin-magazine-id').value = '';
             adminCoverFileName.textContent = 'Belum ada file dipilih';
-            document.getElementById('admin-magazine-access').value = 'premium'; // Default ke premium
             
             // Reset PDF upload
             pdfUploadContainer.innerHTML = '';
@@ -6700,10 +6632,9 @@
             const date = document.getElementById('admin-magazine-date').value;
             const price = document.getElementById('admin-magazine-price').value;
             const description = document.getElementById('admin-magazine-description').value;
-            const accessType = document.getElementById('admin-magazine-access').value;
             
             // Validasi form
-            if (!title || !date || !price || !accessType) {
+            if (!title || !date || !price) {
                 showToast('Harap isi semua field yang wajib!', 'error');
                 return;
             }
@@ -6764,7 +6695,7 @@
                 }
             });
             
-            // Buat objek majalah dengan accessType
+            // Buat objek majalah
             const magazine = {
                 id: id,
                 title: title,
@@ -6775,7 +6706,6 @@
                 pdfUrl: pdfUrl,
                 pdfFileName: pdfFileName,
                 previewPages: previewPagesData,
-                accessType: accessType || 'premium',
                 reads: document.getElementById('admin-magazine-id').value ? 
                     (adminMagazines.find(m => m.id === id)?.reads || 0) : 0
             };
@@ -6848,7 +6778,6 @@
             document.getElementById('admin-magazine-date').value = magazine.date;
             document.getElementById('admin-magazine-price').value = magazine.price;
             document.getElementById('admin-magazine-description').value = magazine.description || '';
-            document.getElementById('admin-magazine-access').value = magazine.accessType || 'premium';
             
             // Reset file inputs
             adminCoverFileName.textContent = 'Gambar saat ini digunakan';
